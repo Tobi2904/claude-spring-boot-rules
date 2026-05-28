@@ -1,0 +1,38 @@
+claude-spring-boot-rules
+Copyright (c) 2026 Tobi2904 (Nguyen Hoang Bao)
+
+This product is a derivative work that builds on the following prior art:
+
+------------------------------------------------------------------------
+forrestchang/andrej-karpathy-skills
+https://github.com/forrestchang/andrej-karpathy-skills
+Copyright (c) 2026 Forrest Chang
+Licensed under the MIT License
+
+The following rules in CLAUDE.md were adapted from this upstream project:
+
+  1. Think Before Coding
+  2. Simplicity First
+  3. Surgical Changes
+  4. Goal-Driven Execution
+
+These rules were themselves derived from Andrej Karpathy's January 26, 2026
+public observations on common LLM coding pitfalls. Andrej Karpathy has not
+endorsed any of these derived works.
+------------------------------------------------------------------------
+
+Original additions in this repository (not present in upstream):
+
+  5.  No Hardcoding (Use Constants & Enums)
+  6.  Thin Controllers, Fat Services
+  7.  SOLID & Clean Code Adherence
+  8.  Automated Mapping with MapStruct
+  9.  Boilerplate Reduction with Lombok
+  10. Standardized Identifiers (UUID v7)
+  11. Proactive Security & Performance Audits
+  12. Custom Pagination Wrappers (PageResponse<T>)
+  13. Localized Error Messages (defaults to Vietnamese, customizable)
+  14. User-Centric Roleplay & Edge Cases
+
+These additions, the EXAMPLES.md content, and the README files are original
+contributions by Tobi2904, released under the MIT License (see LICENSE).

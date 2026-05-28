@@ -1,0 +1,73 @@
+---
+description: Spring Boot / Java backend behavioral rules — opinionated for production code
+globs:
+  - "**/*.java"
+  - "**/pom.xml"
+  - "**/build.gradle"
+  - "**/build.gradle.kts"
+  - "**/application*.yml"
+  - "**/application*.properties"
+alwaysApply: true
+---
+
+# Spring Boot / Java Backend Rules
+
+These rules are MANDATORY when writing or editing code in this project.
+
+## 1. Think Before Coding
+State assumptions explicitly. If multiple interpretations exist, present them — don't pick silently. If unclear, ask.
+
+## 2. Simplicity First
+Minimum code that solves the problem. No speculative abstractions, configurability, or error handling for impossible scenarios. If 200 lines could be 50, rewrite.
+
+## 3. Surgical Changes
+Touch only what the user asked for. Don't improve adjacent code, comments, or formatting. Match existing style.
+
+## 4. Goal-Driven Execution
+Every task gets verifiable success criteria. State a brief plan with verification checks before multi-step work.
+
+## 5. No Hardcoding
+Never hardcode config values, error keys, or business literals. Extract to a Constants class, config file, or Enum. Magic strings/numbers are bugs waiting to happen.
+
+## 6. Thin Controllers, Fat Services
+Controllers ONLY: receive request → validate → call service → return response. Zero business logic, transformations, or DB queries in controllers. If a controller method has `if-else` business decisions, move it to a service.
+
+## 7. SOLID & Clean Code
+Strictly enforce SOLID — especially Single Responsibility and Dependency Inversion. If new code is hard to unit test, refactor.
+
+## 8. MapStruct for All Mapping
+Never write manual `dto.setX(entity.getX())`. Every Entity ↔ DTO ↔ Domain conversion goes through a `@Mapper(componentModel = "spring")` MapStruct interface.
+
+## 9. Lombok for Boilerplate
+Use `@Getter`, `@Setter`, `@RequiredArgsConstructor`, `@Builder`, `@NoArgsConstructor`, `@AllArgsConstructor`. Never hand-write getters, setters, or standard constructors.
+
+## 10. UUID v7 for All Entity IDs
+Every entity primary key uses UUID v7 (time-ordered, index-friendly). Use a library like `com.github.f4b6a3:uuid-creator` and generate in `@PrePersist`.
+
+## 11. Proactive Security & Performance Audits
+While reading or writing code, if you detect:
+- SQL injection risk → STOP, report, propose parameterized fix
+- Broken access control → STOP, report
+- N+1 query → STOP, suggest `@EntityGraph` or `JOIN FETCH`
+- Heavy loops, missing indexes, blocking calls → flag immediately
+
+Never silently ship architectural risk.
+
+## 12. Custom `PageResponse<T>` Wrapper
+Paginated endpoints MUST return `PageResponse<T>`, never Spring's raw `Page<T>`. Maintains API stability when paging shape evolves.
+
+## 13. Localized Error Messages
+All user-facing error messages (Exception messages, `@ResponseStatus` responses, validation messages) MUST be in the end-user's language. English is for logs only.
+
+> **Customize for your audience.** This file ships with Vietnamese as the default (the original author's target market). Replace with your audience's language, or delete this rule if your end-users read English natively.
+
+Examples (Vietnamese default):
+- ✅ `"Email này đã được sử dụng. Vui lòng dùng email khác."`
+- ❌ `"Email already exists"` (when shipping to non-English users)
+
+## 14. Roleplay User & Edge Cases
+Before declaring a feature "done," explicitly list at least 2 user-error scenarios (e.g., huge file upload, malformed input, race conditions) and confirm the code handles them. No "happy path only."
+
+---
+
+When in doubt, re-read these rules. They prevent the exact failure modes that ship to production.
