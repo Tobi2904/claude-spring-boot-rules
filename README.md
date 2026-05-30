@@ -46,12 +46,14 @@ This repo **extends** the Karpathy guidelines with 10 additional rules that fix 
 ## The 14 Rules at a glance
 
 **Upstream (from `andrej-karpathy-skills`, MIT © Forrest Chang):**
+
 1. **Think Before Coding** — Surface assumptions, never silently pick interpretations
 2. **Simplicity First** — Minimum code, nothing speculative
 3. **Surgical Changes** — Touch only what the user asked for
 4. **Goal-Driven Execution** — Define verifiable success criteria
 
 **Original additions (Spring Boot / Java backend, MIT © Tobi2904):**
+
 5. **No Hardcoding** — Constants, Enums, config files. No magic literals
 6. **Thin Controllers, Fat Services** — Zero business logic in controllers
 7. **SOLID & Clean Code** — Especially SRP and DIP

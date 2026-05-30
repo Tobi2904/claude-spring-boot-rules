@@ -46,12 +46,14 @@ Repo này **mở rộng** Karpathy guidelines bằng 10 rule bổ sung để fix
 ## Tóm tắt 14 nguyên tắc
 
 **Từ upstream (`andrej-karpathy-skills`, MIT © Forrest Chang):**
+
 1. **Suy nghĩ trước khi code** — Nói rõ giả định, không tự ý chọn cách hiểu
 2. **Đơn giản trước đã** — Code tối thiểu, không suy diễn
 3. **Sửa đúng chỗ cần sửa** — Không "tiện tay" refactor chỗ khác
 4. **Định hướng theo mục tiêu** — Có tiêu chí thành công kiểm chứng được
 
 **Bổ sung gốc (Spring Boot / Java backend, MIT © Tobi2904):**
+
 5. **Không hardcode** — Dùng Constants, Enum, config. Không có magic literal
 6. **Controller mỏng, Service dày** — Controller không chứa business logic
 7. **SOLID & Clean Code** — Đặc biệt là SRP và DIP
