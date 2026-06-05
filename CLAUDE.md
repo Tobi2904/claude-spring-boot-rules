@@ -3,7 +3,7 @@
 Behavioral guidelines to reduce common LLM coding mistakes for Spring Boot / Java backend projects. Merge with project-specific instructions as needed.
 
 > **Attribution:** Rules #1–#4 are derived from [`forrestchang/andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) (MIT License, © Forrest Chang), based on Andrej Karpathy's observations on LLM coding pitfalls.
-> Rules #5–#14 are original additions by [@Tobi2904](https://github.com/Tobi2904), focused on Spring Boot / Java backend conventions. Rule #13 (Localized Error Messages) defaults to a Vietnamese example and is intended to be customized or removed for other audiences.
+> Rules #5–#15 are original additions by [@Tobi2904](https://github.com/Tobi2904), focused on Spring Boot / Java backend conventions. Rule #13 (Localized Error Messages) defaults to a Vietnamese example and is intended to be customized or removed for other audiences.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
@@ -63,7 +63,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ---
 
-> **The rules below (#5–#14) are original Spring Boot / Java backend additions, not part of the upstream Karpathy guidelines.**
+> **The rules below (#5–#15) are original Spring Boot / Java backend additions, not part of the upstream Karpathy guidelines.**
 
 ## 5. No Hardcoding (Use Constants & Enums)
 
@@ -127,6 +127,8 @@ The test: Verify that any new entity or ID generation logic strictly initializes
 
 The test: Never ignore or bypass a potential architectural risk just to complete the prompt's functional requirement.
 
+For N+1 specifically: prefer `JOIN FETCH`, `@EntityGraph`, or `@BatchSize` over lazy-loading inside loops. Flag any `findAll()` (or similar) followed by per-element repository/getter calls that trigger additional queries.
+
 ## 12. Custom Pagination Wrappers
 
 **Never return default `Page<T>`. Wrap in `PageResponse<T>`.**
@@ -165,3 +167,14 @@ throw new NotFoundException("Không tìm thấy người dùng tương ứng.");
 - Do not assume "happy paths." Explicitly safeguard against chaotic or improper user behaviors.
 
 The test: List at least two potential user-error edge cases and how the code handles them before marking a feature complete.
+
+## 15. Two-Tier Validation (Declarative + Strategy)
+
+**Stateless validation on DTOs via annotations. Stateful/business validation as injectable Validator strategies — never a wall of private methods in the service.**
+
+- **Tier 1 — Stateless** (null, blank, regex, size, range, enum, and static cross-field like `endDate` after `startDate`): declare with `jakarta.validation` annotations on request DTOs, triggered by `@Valid` / `@Validated` in the controller. Never re-check these in the service.
+- **Tier 2 — Stateful / business** (uniqueness, balance, inventory, ownership, status transitions — anything needing a DB lookup or another entity): keep it out of the controller. NEVER inject a `Repository` into a `ConstraintValidator` — it hides business rules, runs outside `@Transactional`, and invites N+1 / session bugs.
+- Model each business rule as a `@Component` implementing a shared `XxxValidator` interface. Inject `List<XxxValidator>` into the service and loop over it — Spring auto-collects every implementation, so adding a rule means adding a class (OCP), not editing the service.
+- When order matters (e.g. existence before permission), control it with `@Order` / the `Ordered` interface on the validators; for strict pass-then-proceed gating, use a Chain of Responsibility.
+
+The test: Does this check need data beyond the request (a DB row, another entity)? Yes → a Validator strategy. No → a DTO annotation. If a service is accumulating private `validate*()` methods, extract them into strategies.

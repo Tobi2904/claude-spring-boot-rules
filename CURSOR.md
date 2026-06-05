@@ -48,6 +48,12 @@ All user-facing error messages in the end-user's language. Default: Vietnamese (
 ## Rule 14 — Roleplay & Edge Cases
 Before declaring "done," list at least 2 user-error scenarios and how the code handles them. No "happy path only."
 
+## Rule 15 — Two-Tier Validation (Declarative + Strategy)
+
+**Tier 1 (stateless):** null, blank, regex, size, range, enum, static cross-field → `jakarta.validation` annotations on request DTOs, triggered by `@Valid`/`@Validated` in the controller. Never re-check in the service. 
+
+**Tier 2 (stateful/business):** uniqueness, balance, ownership, status transitions → keep out of the controller and NEVER inject a `Repository` into a `ConstraintValidator`. Model each business rule as a `@Component` implementing a shared `XxxValidator` interface, inject `List<XxxValidator>` into the service, and loop — adding a rule means adding a class (OCP), no service edit. Use `@Order` / `Ordered` when sequence matters, or a Chain of Responsibility for strict gating.
+
 ---
 
 **Tip:** This file pairs with `.cursor/rules/spring-boot.mdc` which Cursor auto-attaches when editing `*.java`, `pom.xml`, or `build.gradle` files.

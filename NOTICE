@@ -33,6 +33,7 @@ Original additions in this repository (not present in upstream):
   12. Custom Pagination Wrappers (PageResponse<T>)
   13. Localized Error Messages (defaults to Vietnamese, customizable)
   14. User-Centric Roleplay & Edge Cases
+  15. Two-Tier Validation (Declarative + Business Strategy)
 
 These additions, the EXAMPLES.md content, and the README files are original
 contributions by Tobi2904, released under the MIT License (see LICENSE).

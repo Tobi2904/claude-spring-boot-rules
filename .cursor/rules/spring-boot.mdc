@@ -68,6 +68,13 @@ Examples (Vietnamese default):
 ## 14. Roleplay User & Edge Cases
 Before declaring a feature "done," explicitly list at least 2 user-error scenarios (e.g., huge file upload, malformed input, race conditions) and confirm the code handles them. No "happy path only."
 
+## 15. Two-Tier Validation (Declarative + Strategy)
+Split validation into two tiers:
+- **Tier 1 — Stateless** (null, blank, regex, size, range, enum, static cross-field like `endDate` after `startDate`): `jakarta.validation` annotations on request DTOs, triggered by `@Valid`/`@Validated` in the controller. Never re-check in the service.
+- **Tier 2 — Stateful/business** (uniqueness, balance, inventory, ownership, status transitions — needs a DB lookup or another entity): keep out of the controller. NEVER inject a `Repository` into a `ConstraintValidator` — it hides rules, runs outside `@Transactional`, and invites N+1/session bugs.
+
+For business rules, model each as a `@Component` implementing a shared `XxxValidator` interface, inject `List<XxxValidator>` into the service, and loop — Spring auto-collects every implementation, so adding a rule means adding a class (OCP), not editing the service. Control run order with `@Order`/`Ordered`; use a Chain of Responsibility for strict pass-then-proceed gating.
+
 ---
 
 When in doubt, re-read these rules. They prevent the exact failure modes that ship to production.

@@ -1,6 +1,6 @@
 # EXAMPLES.md
 
-Concrete before/after examples for each of the 14 rules in [`CLAUDE.md`](./CLAUDE.md). Real Spring Boot / Java code.
+Concrete before/after examples for each of the 15 rules in [`CLAUDE.md`](./CLAUDE.md). Real Spring Boot / Java code.
 
 ---
 
@@ -361,6 +361,91 @@ public void upload(@RequestParam MultipartFile file) {
 ```java
 // ... safe implementation
 ```
+
+---
+
+## Rule 15 — Two-Tier Validation (Declarative + Strategy)
+
+**Tier 1 — stateless checks live on the DTO** (null, blank, regex, size, range, enum):
+
+❌ **Bad — format checks bloating the service:**
+```java
+public OrderResponse create(OrderRequest req) {
+    if (req.userId() == null) throw new BadRequestException("Vui lòng chọn người dùng");
+    if (req.amount() == null || req.amount().signum() <= 0)
+        throw new BadRequestException("Số tiền phải lớn hơn 0");
+    // ... business logic only starts here
+}
+```
+
+✅ **Good — annotations on the request DTO, triggered in the controller:**
+```java
+public record OrderRequest(
+    @NotNull(message = "Vui lòng chọn người dùng")
+    UUID userId,
+
+    @NotNull @Positive(message = "Số tiền phải lớn hơn 0")
+    BigDecimal amount
+) {}
+
+@PostMapping("/orders")
+public OrderResponse create(@RequestBody @Valid OrderRequest req) {
+    return orderService.create(req); // input is already well-formed
+}
+```
+
+**Tier 2 — stateful/business checks are `Validator` strategies, not service bloat.** Anything needing the DB or another entity (uniqueness, balance, status transition) stays server-side — but extracted, so the service never becomes a God Class.
+
+❌ **Bad — every rule piled into one service method:**
+```java
+@Transactional
+public OrderResponse create(OrderRequest req) {
+    var user = userRepo.findById(req.userId()).orElseThrow(...);
+    if (user.getStatus() == UserStatus.LOCKED) throw new ...("Tài khoản đã bị khóa.");
+    if (user.getBalance().compareTo(req.amount()) < 0) throw new ...("Số dư không đủ.");
+    // + 200 more lines as rules accumulate → unmaintainable, merge-conflict magnet
+}
+```
+
+✅ **Good — one `@Component` per rule, the service just orchestrates:**
+```java
+public interface OrderValidator {
+    void validate(User user, OrderRequest req);
+}
+
+@Component @Order(1)
+class AccountActiveValidator implements OrderValidator {
+    public void validate(User user, OrderRequest req) {
+        if (user.getStatus() == UserStatus.LOCKED)
+            throw new AccountLockedException("Tài khoản đã bị khóa.");
+    }
+}
+
+@Component @Order(2)
+class SufficientBalanceValidator implements OrderValidator {
+    public void validate(User user, OrderRequest req) {
+        if (user.getBalance().compareTo(req.amount()) < 0)
+            throw new InsufficientBalanceException("Số dư không đủ để thực hiện giao dịch.");
+    }
+}
+
+@Service
+@RequiredArgsConstructor
+public class OrderService {
+    private final List<OrderValidator> validators; // Spring injects all @Components, ordered by @Order
+    private final UserRepository userRepo;
+
+    @Transactional
+    public OrderResponse create(OrderRequest req) {
+        var user = userRepo.findById(req.userId())
+            .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng."));
+        validators.forEach(v -> v.validate(user, req)); // runs active-check → balance-check, in @Order
+        // ... core business logic
+    }
+}
+```
+
+Adding a fraud check tomorrow = a new `@Component`, **zero edits** to `OrderService` (Open/Closed). Each validator is unit-testable in isolation. When sequence matters, `@Order` (or implementing `Ordered`) sets run order — lower value runs first; for strict pass-step-1-before-step-2 gating, use a Chain of Responsibility instead.
 
 ---
 

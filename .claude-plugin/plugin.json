@@ -22,7 +22,8 @@
     "clean-code",
     "mapstruct",
     "lombok",
-    "uuid-v7"
+    "uuid-v7",
+    "validation"
   ],
   "files": [
     "CLAUDE.md",
