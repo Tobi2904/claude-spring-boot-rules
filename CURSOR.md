@@ -54,6 +54,12 @@ Before declaring "done," list at least 2 user-error scenarios and how the code h
 
 **Tier 2 (stateful/business):** uniqueness, balance, ownership, status transitions → keep out of the controller and NEVER inject a `Repository` into a `ConstraintValidator`. Model each business rule as a `@Component` implementing a shared `XxxValidator` interface, inject `List<XxxValidator>` into the service, and loop — adding a rule means adding a class (OCP), no service edit. Use `@Order` / `Ordered` when sequence matters, or a Chain of Responsibility for strict gating.
 
+## Rule 16 — Split Queries over `JOIN FETCH`
+Never `JOIN FETCH` (or entity-loading `JOIN`) a collection (`@OneToMany` / `@ManyToMany`) — it causes Cartesian blow-up and `MultipleBagFetchException`. Fetch parent and children with separate repository calls (`findBy...In(ids)`) and assemble the relationships in the service with `Stream` + a `HashMap` (O(1) lookups). Keep JPQL one-table-simple. To-one associations may still use `JOIN FETCH` / `@EntityGraph`.
+
+## Rule 17 — `Set<>` for Entity Collections
+Entity association fields (`@OneToMany` / `@ManyToMany`) are `Set<>`, never `List<>` — avoids duplicates, models many-to-many correctly, and sidesteps `MultipleBagFetchException`. Initialize to `new HashSet<>()`. Base equality on the UUID v7 id / a business key, **not** Lombok `@EqualsAndHashCode`/`@Data`. `List<>` is still fine for DTOs and return types.
+
 ---
 
 **Tip:** This file pairs with `.cursor/rules/spring-boot.mdc` which Cursor auto-attaches when editing `*.java`, `pom.xml`, or `build.gradle` files.

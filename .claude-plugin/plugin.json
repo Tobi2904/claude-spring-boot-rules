@@ -1,7 +1,7 @@
 {
   "name": "claude-spring-boot-rules",
-  "version": "1.0.0",
-  "description": "Behavioral guidelines that make Claude Code write production-grade Spring Boot / Java backend code — no hardcoding, MapStruct mapping, Lombok boilerplate, UUID v7 IDs, custom PageResponse, Vietnamese error messages, and proactive security/performance audits.",
+  "version": "1.1.0",
+  "description": "Behavioral guidelines that make Claude Code write production-grade Spring Boot / Java backend code — no hardcoding, MapStruct mapping, Lombok boilerplate, UUID v7 IDs, custom PageResponse, Vietnamese error messages, proactive security/performance audits, and split-query data fetching with Set-based entity collections.",
   "author": {
     "name": "Tobi2904",
     "url": "https://github.com/Tobi2904"

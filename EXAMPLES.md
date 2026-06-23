@@ -1,6 +1,6 @@
 # EXAMPLES.md
 
-Concrete before/after examples for each of the 15 rules in [`CLAUDE.md`](./CLAUDE.md). Real Spring Boot / Java code.
+Concrete before/after examples for each of the 17 rules in [`CLAUDE.md`](./CLAUDE.md). Real Spring Boot / Java code.
 
 ---
 
@@ -271,7 +271,7 @@ users.forEach(u -> u.getOrders().size()); // N+1!
 ✅ **Good — stop and flag:**
 > I notice two risks before continuing:
 > 1. **SQL Injection** — concatenating `username` into a native query. I'll use a parameterized JPQL query.
-> 2. **Potential N+1** — if you'll access `orders` afterward, I'll add `@EntityGraph(attributePaths = "orders")` or a `JOIN FETCH`.
+> 2. **Potential N+1** — if you'll access `orders` (a collection) afterward, I'll fetch them with the Split Queries pattern (Rule #16) or `@BatchSize` — never a `JOIN FETCH` on the collection.
 >
 > Confirm before I proceed?
 
@@ -446,6 +446,64 @@ public class OrderService {
 ```
 
 Adding a fraud check tomorrow = a new `@Component`, **zero edits** to `OrderService` (Open/Closed). Each validator is unit-testable in isolation. When sequence matters, `@Order` (or implementing `Ordered`) sets run order — lower value runs first; for strict pass-step-1-before-step-2 gating, use a Chain of Responsibility instead.
+
+---
+
+## Rule 16 — Split Queries over `JOIN FETCH`
+
+**Prompt:** "Load each order with its line items."
+
+❌ **Bad — `JOIN FETCH` on a collection (Cartesian blow-up; two such fetches throw `MultipleBagFetchException`):**
+```java
+@Query("SELECT o FROM Order o JOIN FETCH o.items WHERE o.userId = :userId")
+List<Order> findWithItems(UUID userId);
+```
+
+✅ **Good — two simple queries, assembled in the service with a `HashMap`:**
+```java
+// Repositories: each queries only its own table
+List<Order> findByUserId(UUID userId);
+
+@Query("SELECT i FROM OrderItem i WHERE i.orderId IN :orderIds")
+List<OrderItem> findByOrderIdIn(Collection<UUID> orderIds);
+
+// Service: O(1) in-memory assembly, then map to the response
+var orders = orderRepo.findByUserId(userId);
+var orderIds = orders.stream().map(Order::getId).toList();
+Map<UUID, List<OrderItem>> itemsByOrder = orderItemRepo.findByOrderIdIn(orderIds)
+        .stream().collect(Collectors.groupingBy(OrderItem::getOrderId));
+
+return orders.stream()
+        .map(o -> orderMapper.toResponse(o, itemsByOrder.getOrDefault(o.getId(), List.of())))
+        .toList();
+```
+No row multiplication, no `MultipleBagFetchException`, predictable memory. To-one associations (`@ManyToOne` / `@OneToOne`) may still be `JOIN FETCH`-ed — the ban is collections only.
+
+---
+
+## Rule 17 — `Set<>` for Entity Collections
+
+❌ **Bad — `List<>` association (allows duplicate rows; two `List` fetches throw `MultipleBagFetchException`):**
+```java
+@Entity
+public class Post {
+    @ManyToMany
+    private List<Tag> tags = new ArrayList<>();
+}
+```
+
+✅ **Good — `Set<>` association:**
+```java
+@Entity
+public class Post {
+    @Id
+    private UUID id; // UUID v7 — see Rule 10
+
+    @ManyToMany
+    private Set<Tag> tags = new HashSet<>();
+}
+```
+`Set` membership is decided by `equals` / `hashCode`, so base equality on the stable `id` (or a business key) — **not** Lombok `@EqualsAndHashCode` / `@Data`, which would drag lazy associations into the hash. `List<>` stays fine for DTOs, projections, and return types; this rule covers **entity association fields** only.
 
 ---
 

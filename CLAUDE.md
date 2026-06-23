@@ -3,7 +3,7 @@
 Behavioral guidelines to reduce common LLM coding mistakes for Spring Boot / Java backend projects. Merge with project-specific instructions as needed.
 
 > **Attribution:** Rules #1–#4 are derived from [`forrestchang/andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) (MIT License, © Forrest Chang), based on Andrej Karpathy's observations on LLM coding pitfalls.
-> Rules #5–#15 are original additions by [@Tobi2904](https://github.com/Tobi2904), focused on Spring Boot / Java backend conventions. Rule #13 (Localized Error Messages) defaults to a Vietnamese example and is intended to be customized or removed for other audiences.
+> Rules #5–#17 are original additions by [@Tobi2904](https://github.com/Tobi2904), focused on Spring Boot / Java backend conventions. Rule #13 (Localized Error Messages) defaults to a Vietnamese example and is intended to be customized or removed for other audiences.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
@@ -63,7 +63,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ---
 
-> **The rules below (#5–#15) are original Spring Boot / Java backend additions, not part of the upstream Karpathy guidelines.**
+> **The rules below (#5–#17) are original Spring Boot / Java backend additions, not part of the upstream Karpathy guidelines.**
 
 ## 5. No Hardcoding (Use Constants & Enums)
 
@@ -127,7 +127,7 @@ The test: Verify that any new entity or ID generation logic strictly initializes
 
 The test: Never ignore or bypass a potential architectural risk just to complete the prompt's functional requirement.
 
-For N+1 specifically: prefer `JOIN FETCH`, `@EntityGraph`, or `@BatchSize` over lazy-loading inside loops. Flag any `findAll()` (or similar) followed by per-element repository/getter calls that trigger additional queries.
+For N+1 specifically: flag any `findAll()` (or similar) followed by per-element repository/getter calls that trigger additional queries. This rule's job is to **catch** the N+1, not to prescribe the fetch strategy — for the fix (to-one vs collection), defer to Rule #16.
 
 ## 12. Custom Pagination Wrappers
 
@@ -178,3 +178,26 @@ The test: List at least two potential user-error edge cases and how the code han
 - When order matters (e.g. existence before permission), control it with `@Order` / the `Ordered` interface on the validators; for strict pass-then-proceed gating, use a Chain of Responsibility.
 
 The test: Does this check need data beyond the request (a DB row, another entity)? Yes → a Validator strategy. No → a DTO annotation. If a service is accumulating private `validate*()` methods, extract them into strategies.
+
+## 16. High-Performance Data Fetching (Split Queries over `JOIN FETCH`)
+
+**Ban `JOIN FETCH` on collections. Fetch the parent and its child collections separately, then assemble in memory.**
+
+- **The Cartesian ban:** Never use `JOIN FETCH` (or entity-loading `JOIN`s) on `@OneToMany` / `@ManyToMany` relationships. It triggers a Cartesian-product blow-up (and `MultipleBagFetchException` once two `List` collections are fetched), exhausting heap and DB CPU.
+- **Mandatory split queries:** When business logic needs a parent plus its child collections, fetch them with separate repository calls (e.g. `findBy...In(Collection<ID> ids)`) and stitch the relationships together in the service using `Stream` + a `HashMap` for O(1) lookups.
+- **Single responsibility in repositories:** Keep JPQL dead simple — a repository method should query only its primary table.
+- **Read-only projections:** For strictly read-only endpoints, DTO projections (`SELECT new ...`) are allowed, but they still must not join multiple collection tables.
+- **To-one is exempt:** `@ManyToOne` / `@OneToOne` associations may still use `JOIN FETCH` / `@EntityGraph` — the ban applies to collections only (see Rule #11).
+
+The test: If generated JPQL contains a `JOIN FETCH` for a collection, or the database is asked to join multiple collection tables into a single result set to populate entity relations, rewrite it immediately using the Split Queries (Java `HashMap` assembly) pattern.
+
+## 17. Use `Set<>` (not `List<>`) for Entity Collections
+
+**Entity association fields are `Set<>`, never `List<>`.**
+
+- Map `@OneToMany` / `@ManyToMany` association fields as `Set<T>`, not `List<T>`. This prevents duplicate rows and models many-to-many relationships correctly. (Hibernate treats a `List` as a "bag", which also makes it the source of `MultipleBagFetchException`.)
+- Initialize the field to an empty collection (`= new HashSet<>()`) to avoid `NullPointerException` on a freshly built entity.
+- Because `Set` membership depends on `equals` / `hashCode`, do **not** slap Lombok `@EqualsAndHashCode` / `@Data` on entities — they pull in lazy/mutable fields and break the set. Base equality on a stable business key or the assigned UUID v7 id (Rule #10).
+- `List<>` stays perfectly fine for DTOs, projections, and method return types — this rule is about **entity association fields** only.
+
+The test: Does an `@Entity` declare a `List<>` association field? Change it to `Set<>` (and confirm equality is id/business-key based, not Lombok-generated).

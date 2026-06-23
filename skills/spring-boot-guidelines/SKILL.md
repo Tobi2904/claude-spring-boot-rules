@@ -1,11 +1,11 @@
 ---
 name: spring-boot-guidelines
-description: Behavioral guidelines that make Claude write production-grade Spring Boot / Java backend code. Use whenever editing or generating Java files (especially `*.java`, `pom.xml`, or Spring Boot config), or whenever the user mentions controllers, services, entities, DTOs, mappers, pagination, validation, or error handling in a Spring/Java context. Enforces: no hardcoding (use Constants/Enums), thin controllers and fat services, MapStruct for all DTO/Entity mapping, Lombok for boilerplate, UUID v7 for primary keys, custom `PageResponse<T>` wrappers, Vietnamese user-facing error messages, proactive security and performance audits (SQLi, N+1), two-tier validation (stateless DTO annotations + business `Validator` strategies), and roleplay-based edge case coverage.
+description: Behavioral guidelines that make Claude write production-grade Spring Boot / Java backend code. Use whenever editing or generating Java files (especially `*.java`, `pom.xml`, or Spring Boot config), or whenever the user mentions controllers, services, entities, DTOs, mappers, pagination, validation, or error handling in a Spring/Java context. Enforces: no hardcoding (use Constants/Enums), thin controllers and fat services, MapStruct for all DTO/Entity mapping, Lombok for boilerplate, UUID v7 for primary keys, custom `PageResponse<T>` wrappers, Vietnamese user-facing error messages, proactive security and performance audits (SQLi, N+1), two-tier validation (stateless DTO annotations + business `Validator` strategies), split-query data fetching (no `JOIN FETCH` on collections — assemble in memory), `Set<>` (not `List<>`) entity collections, and roleplay-based edge case coverage.
 ---
 
 # Spring Boot / Java Backend Guidelines
 
-This skill packages 15 behavioral rules for writing production-grade Spring Boot backend code. See [`../../CLAUDE.md`](../../CLAUDE.md) for the full rules and [`../../EXAMPLES.md`](../../EXAMPLES.md) for before/after code.
+This skill packages 17 behavioral rules for writing production-grade Spring Boot backend code. See [`../../CLAUDE.md`](../../CLAUDE.md) for the full rules and [`../../EXAMPLES.md`](../../EXAMPLES.md) for before/after code.
 
 ## Quick Reference
 
@@ -26,6 +26,8 @@ This skill packages 15 behavioral rules for writing production-grade Spring Boot
 | 13 | Localized errors | Are user-facing messages in the end-user's language? |
 | 14 | Edge cases | Did I list 2+ failure modes? |
 | 15 | Two-tier validation | A DB-dependent check inside a `ConstraintValidator`, or a wall of private `validate*()`? |
+| 16 | Split queries | A `JOIN FETCH` on a collection (`@OneToMany`/`@ManyToMany`)? |
+| 17 | `Set<>` collections | Does an `@Entity` declare a `List<>` association field? |
 
 ## When to invoke
 
@@ -39,7 +41,7 @@ Auto-invoke this skill whenever:
 ## How to apply
 
 1. Before coding, scan the user's prompt against rules 1–4 (planning rules)
-2. While coding, enforce rules 5–13 and 15 (implementation rules)
+2. While coding, enforce rules 5–13 and 15–17 (implementation rules)
 3. Before declaring done, run rule 14 (edge case audit)
 
 If any rule cannot be satisfied, stop and explain why before continuing.

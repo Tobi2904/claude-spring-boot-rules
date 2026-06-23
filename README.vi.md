@@ -9,7 +9,7 @@
 
 🇬🇧 **[Read in English →](./README.md)**
 
-> **Kế thừa từ prior art.** Rules #1–#4 phỏng theo [`forrestchang/andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) (MIT, © Forrest Chang), bản thân nó dựa trên observations của Andrej Karpathy về LLM coding pitfalls. Rules #5–#15 là bổ sung gốc cho Spring Boot / Java backend conventions. Xem [`NOTICE`](./NOTICE) để biết attribution đầy đủ.
+> **Kế thừa từ prior art.** Rules #1–#4 phỏng theo [`forrestchang/andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) (MIT, © Forrest Chang), bản thân nó dựa trên observations của Andrej Karpathy về LLM coding pitfalls. Rules #5–#17 là bổ sung gốc cho Spring Boot / Java backend conventions. Xem [`NOTICE`](./NOTICE) để biết attribution đầy đủ.
 
 ---
 
@@ -27,15 +27,15 @@ Nhưng khi LLM viết **Spring Boot / Java backend cụ thể**, nó vẫn có t
 - ❌ Trả thẳng `Page<T>` nội bộ của Spring ra API
 - ❌ Trả error message sai ngôn ngữ so với end-user thực tế
 
-Repo này **mở rộng** Karpathy guidelines bằng 11 rule bổ sung để fix các thói quen xấu đặc thù của Spring Boot. Tối ưu cho dự án Java/Spring Boot 3.x.
+Repo này **mở rộng** Karpathy guidelines bằng 13 rule bổ sung để fix các thói quen xấu đặc thù của Spring Boot. Tối ưu cho dự án Java/Spring Boot 3.x.
 
-> **Ghi chú về localization:** Rule #13 ("Localized Error Messages") ship sẵn ví dụ tiếng Việt vì đó là thị trường của mình. **Rule này được thiết kế để customize hoặc xóa** nếu end-user của bạn nói ngôn ngữ khác. 14 rule còn lại không phụ thuộc ngôn ngữ.
+> **Ghi chú về localization:** Rule #13 ("Localized Error Messages") ship sẵn ví dụ tiếng Việt vì đó là thị trường của mình. **Rule này được thiết kế để customize hoặc xóa** nếu end-user của bạn nói ngôn ngữ khác. 16 rule còn lại không phụ thuộc ngôn ngữ.
 
 ## Trong repo có gì
 
 | File | Mục đích |
 |------|----------|
-| [`CLAUDE.md`](./CLAUDE.md) | 15 nguyên tắc. Bỏ vào root project, Claude Code tự đọc. |
+| [`CLAUDE.md`](./CLAUDE.md) | 17 nguyên tắc. Bỏ vào root project, Claude Code tự đọc. |
 | [`CURSOR.md`](./CURSOR.md) | Cùng nội dung, định dạng cho Cursor IDE. |
 | [`EXAMPLES.md`](./EXAMPLES.md) | Ví dụ code before/after cụ thể cho từng nguyên tắc. |
 | [`.claude-plugin/plugin.json`](./.claude-plugin/plugin.json) | Cài như Claude Code plugin. |
@@ -43,7 +43,7 @@ Repo này **mở rộng** Karpathy guidelines bằng 11 rule bổ sung để fix
 | [`skills/spring-boot-guidelines/`](./skills/spring-boot-guidelines/) | Định dạng skill tương thích `skills.sh`. |
 | [`NOTICE`](./NOTICE) | Ghi nhận credit và attribution. |
 
-## Tóm tắt 15 nguyên tắc
+## Tóm tắt 17 nguyên tắc
 
 **Từ upstream (`andrej-karpathy-skills`, MIT © Forrest Chang):**
 
@@ -65,6 +65,8 @@ Repo này **mở rộng** Karpathy guidelines bằng 11 rule bổ sung để fix
 13. **Localized Error Messages** — Message cho end-user phải đúng ngôn ngữ user *(default ví dụ tiếng Việt — customizable hoặc xóa được)*
 14. **Roleplay user & edge case** — Liệt kê 2+ tình huống fail trước khi báo "xong"
 15. **Validation hai tầng** — Stateless đặt annotation `jakarta.validation` trên DTO; rule nghiệp vụ tách thành các `Validator` strategy inject vào Service, không nhồi vào Service
+16. **Split Queries thay cho `JOIN FETCH`** — Không bao giờ `JOIN FETCH` một collection; fetch con riêng rồi ghép trong bộ nhớ bằng `HashMap`
+17. **`Set<>` cho collection của Entity** — Dùng `Set<>` thay `List<>` cho association của entity — không trùng lặp, đúng quan hệ nhiều-nhiều, tránh `MultipleBagFetchException`
 
 Chi tiết đầy đủ trong [`CLAUDE.md`](./CLAUDE.md). Ví dụ thực tế trong [`EXAMPLES.md`](./EXAMPLES.md).
 

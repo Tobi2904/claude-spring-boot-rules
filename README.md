@@ -9,7 +9,7 @@
 
 🇻🇳 **[Đọc bằng tiếng Việt →](./README.vi.md)**
 
-> **Built on prior art.** Rules #1–#4 are adapted from [`forrestchang/andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) (MIT, © Forrest Chang), themselves derived from Andrej Karpathy's observations on LLM coding pitfalls. Rules #5–#15 are original additions for Spring Boot / Java backend conventions. See [`NOTICE`](./NOTICE) for full attribution.
+> **Built on prior art.** Rules #1–#4 are adapted from [`forrestchang/andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) (MIT, © Forrest Chang), themselves derived from Andrej Karpathy's observations on LLM coding pitfalls. Rules #5–#17 are original additions for Spring Boot / Java backend conventions. See [`NOTICE`](./NOTICE) for full attribution.
 
 ---
 
@@ -27,7 +27,7 @@ But out of the box, LLMs writing **Spring Boot / Java backends specifically** st
 - ❌ Leak Spring's internal `Page<T>` shape to API consumers
 - ❌ Return error messages in the wrong language for the actual end-user
 
-This repo **extends** the Karpathy guidelines with 11 additional rules that fix these Spring Boot–specific defaults. Opinionated for Java/Spring Boot 3.x projects.
+This repo **extends** the Karpathy guidelines with 13 additional rules that fix these Spring Boot–specific defaults. Opinionated for Java/Spring Boot 3.x projects.
 
 > **Note on localization:** Rule #13 ("Localized Error Messages") ships with Vietnamese as the default example, because that's the author's market. **It's designed to be customized or removed** if your end-users speak another language. All other rules are locale-agnostic.
 
@@ -35,7 +35,7 @@ This repo **extends** the Karpathy guidelines with 11 additional rules that fix 
 
 | File | Purpose |
 |------|---------|
-| [`CLAUDE.md`](./CLAUDE.md) | The 15 rules. Drop into your project root, Claude Code reads it automatically. |
+| [`CLAUDE.md`](./CLAUDE.md) | The 17 rules. Drop into your project root, Claude Code reads it automatically. |
 | [`CURSOR.md`](./CURSOR.md) | Same rules, formatted for Cursor IDE. |
 | [`EXAMPLES.md`](./EXAMPLES.md) | Concrete before/after code for each rule. |
 | [`.claude-plugin/plugin.json`](./.claude-plugin/plugin.json) | Install as a Claude Code plugin. |
@@ -43,7 +43,7 @@ This repo **extends** the Karpathy guidelines with 11 additional rules that fix 
 | [`skills/spring-boot-guidelines/`](./skills/spring-boot-guidelines/) | Skill format for `skills.sh` compatibility. |
 | [`NOTICE`](./NOTICE) | Attribution and credits for derivative content. |
 
-## The 15 Rules at a glance
+## The 17 Rules at a glance
 
 **Upstream (from `andrej-karpathy-skills`, MIT © Forrest Chang):**
 
@@ -65,6 +65,8 @@ This repo **extends** the Karpathy guidelines with 11 additional rules that fix 
 13. **Localized Error Messages** — End-user-facing messages in the user's actual language *(defaults to Vietnamese as an example — customizable or removable)*
 14. **User-Centric Roleplay & Edge Cases** — List 2+ failure modes before declaring "done"
 15. **Two-Tier Validation** — Stateless checks on DTOs via `jakarta.validation`; business rules as injectable `Validator` strategies, not service bloat
+16. **Split Queries over `JOIN FETCH`** — Never `JOIN FETCH` a collection; fetch children separately and assemble in memory with a `HashMap`
+17. **`Set<>` for Entity Collections** — Use `Set<>`, not `List<>`, for entity associations — no duplicates, correct many-to-many, no `MultipleBagFetchException`
 
 Full details in [`CLAUDE.md`](./CLAUDE.md). Real-world examples in [`EXAMPLES.md`](./EXAMPLES.md).
 

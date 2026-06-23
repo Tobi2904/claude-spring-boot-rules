@@ -48,7 +48,7 @@ Every entity primary key uses UUID v7 (time-ordered, index-friendly). Use a libr
 While reading or writing code, if you detect:
 - SQL injection risk → STOP, report, propose parameterized fix
 - Broken access control → STOP, report
-- N+1 query → STOP, suggest `@EntityGraph` or `JOIN FETCH`
+- N+1 query → STOP, report; for the fix (to-one vs collection) see Rule 16
 - Heavy loops, missing indexes, blocking calls → flag immediately
 
 Never silently ship architectural risk.
@@ -74,6 +74,12 @@ Split validation into two tiers:
 - **Tier 2 — Stateful/business** (uniqueness, balance, inventory, ownership, status transitions — needs a DB lookup or another entity): keep out of the controller. NEVER inject a `Repository` into a `ConstraintValidator` — it hides rules, runs outside `@Transactional`, and invites N+1/session bugs.
 
 For business rules, model each as a `@Component` implementing a shared `XxxValidator` interface, inject `List<XxxValidator>` into the service, and loop — Spring auto-collects every implementation, so adding a rule means adding a class (OCP), not editing the service. Control run order with `@Order`/`Ordered`; use a Chain of Responsibility for strict pass-then-proceed gating.
+
+## 16. Split Queries over `JOIN FETCH`
+NEVER `JOIN FETCH` (or entity-loading `JOIN`) a collection — `@OneToMany` / `@ManyToMany`. It causes Cartesian-product memory blow-up and `MultipleBagFetchException`. Fetch parent and child collections in separate repository calls (`findBy...In(Collection<ID> ids)`) and assemble relationships in the service with `Stream` + a `HashMap` (O(1) lookups). Keep each JPQL query to a single table. Read-only DTO projections (`SELECT new ...`) are allowed but must not join multiple collection tables. To-one associations (`@ManyToOne` / `@OneToOne`) may still use `JOIN FETCH` / `@EntityGraph`.
+
+## 17. `Set<>` for Entity Collections
+Entity association fields (`@OneToMany` / `@ManyToMany`) MUST be `Set<>`, never `List<>` — prevents duplicate rows, models many-to-many correctly, and avoids Hibernate's `MultipleBagFetchException`. Initialize to `new HashSet<>()`. Base `equals`/`hashCode` on the UUID v7 id or a business key — do NOT use Lombok `@EqualsAndHashCode`/`@Data` on entities. `List<>` remains fine for DTOs, projections, and return types.
 
 ---
 
