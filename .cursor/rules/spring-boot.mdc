@@ -81,6 +81,16 @@ NEVER `JOIN FETCH` (or entity-loading `JOIN`) a collection — `@OneToMany` / `@
 ## 17. `Set<>` for Entity Collections
 Entity association fields (`@OneToMany` / `@ManyToMany`) MUST be `Set<>`, never `List<>` — prevents duplicate rows, models many-to-many correctly, and avoids Hibernate's `MultipleBagFetchException`. Initialize to `new HashSet<>()`. Base `equals`/`hashCode` on the UUID v7 id or a business key — do NOT use Lombok `@EqualsAndHashCode`/`@Data` on entities. `List<>` remains fine for DTOs, projections, and return types.
 
+## 18. Choose Executors Based on Workload Type
+Use `Executors.newVirtualThreadPerTaskExecutor()` for I/O-bound work such as S3 operations, HTTP requests, and database calls. Use a fixed thread pool for CPU-bound work such as BCrypt hashing, PDF rendering, and image compression. Size CPU pools to the configured background CPU budget — currently `2` — rather than `Runtime.getRuntime().availableProcessors()` or the server's total four OCPUs. Reuse constants such as `ImportConstants#HASH_WORKERS`, `BatchExportConstants#RENDER_WORKERS`, and `StorageCleanupConstants#CLEANUP_WORKERS` instead of hardcoding counts.
+
+An executor without a built-in concurrency limit MUST be protected by a shared `Semaphore`; a fixed pool is already bounded and MUST NOT get a redundant semaphore. Size I/O concurrency from downstream capacity and measured latency, not CPU cores. Never submit child tasks to the same bounded executor when its parent tasks wait for those children, because this can deadlock. Application-wide executors and semaphores must be singleton/shared beans (for example, in `AsyncConfig`) and shut down when their owning bean is destroyed.
+
+## 19. Centralize Module-Specific Exceptions
+Every module MUST define one exception factory in its `exception` package, such as `DriverExceptions`, `VehicleExceptions`, or `BookingExceptions`. Expose each business error through a clearly named factory method and reuse that method everywhere the error occurs. Services, validators, and controllers MUST NOT duplicate `AppException.general(...)`, HTTP statuses, or user-facing messages.
+
+Factory methods may accept only the contextual values required to build the final message. Do not create differently worded methods for the same business error. Exception factories only construct exceptions; `GlobalExceptionHandler` remains responsible for standardized HTTP responses. Use static imports when unambiguous, and keep every user-facing message compliant with Rule 13.
+
 ---
 
 When in doubt, re-read these rules. They prevent the exact failure modes that ship to production.

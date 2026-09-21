@@ -1,6 +1,6 @@
 # EXAMPLES.md
 
-Concrete before/after examples for each of the 17 rules in [`CLAUDE.md`](./CLAUDE.md). Real Spring Boot / Java code.
+Concrete before/after examples for each of the 19 rules in [`CLAUDE.md`](./CLAUDE.md). Real Spring Boot / Java code.
 
 ---
 
@@ -504,6 +504,108 @@ public class Post {
 }
 ```
 `Set` membership is decided by `equals` / `hashCode`, so base equality on the stable `id` (or a business key) — **not** Lombok `@EqualsAndHashCode` / `@Data`, which would drag lazy associations into the hash. `List<>` stays fine for DTOs, projections, and return types; this rule covers **entity association fields** only.
+
+---
+
+## Rule 18 — Choose Executors Based on Workload Type
+
+❌ **Bad — one per-request fixed pool handles both waiting and computing, uses every detected core, and is never closed:**
+```java
+public void importUsers(List<ImportRow> rows) {
+    var executor = Executors.newFixedThreadPool(
+            Runtime.getRuntime().availableProcessors());
+
+    rows.forEach(row -> executor.submit(() -> {
+        var avatar = storageClient.download(row.avatarKey()); // blocking I/O
+        passwordEncoder.encode(row.password());               // CPU-bound
+        importRow(row, avatar);
+    }));
+}
+```
+
+✅ **Good — shared executors match the workload and the unbounded virtual-thread executor has an application-wide limiter:**
+```java
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public final class ImportConstants {
+    public static final int HASH_WORKERS = 2;
+    public static final int DOWNLOAD_CONCURRENCY = 20;
+}
+
+@Configuration
+public class AsyncConfig {
+
+    @Bean(destroyMethod = "close")
+    ExecutorService ioExecutor() {
+        return Executors.newVirtualThreadPerTaskExecutor();
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    ExecutorService hashExecutor() {
+        return Executors.newFixedThreadPool(ImportConstants.HASH_WORKERS);
+    }
+
+    @Bean
+    Semaphore downloadLimiter() {
+        return new Semaphore(ImportConstants.DOWNLOAD_CONCURRENCY);
+    }
+}
+
+@Service
+@RequiredArgsConstructor
+public class AvatarDownloader {
+    private final ExecutorService ioExecutor;
+    private final Semaphore downloadLimiter;
+    private final StorageClient storageClient;
+
+    public Future<byte[]> download(String objectKey) {
+        return ioExecutor.submit(() -> {
+            downloadLimiter.acquire();
+            try {
+                return storageClient.download(objectKey);
+            } finally {
+                downloadLimiter.release();
+            }
+        });
+    }
+}
+```
+
+The I/O path acquires `downloadLimiter` inside each virtual-thread task and releases it in a `finally` block. The CPU path uses `hashExecutor` directly — its two workers already enforce the configured CPU budget, so an extra semaphore would be redundant. Neither executor submits child work back into itself and waits for it.
+
+---
+
+## Rule 19 — Centralize Module-Specific Exceptions
+
+❌ **Bad — the same business error is constructed independently in multiple services:**
+```java
+// DriverQueryService
+throw AppException.general(HttpStatus.NOT_FOUND, "Không tìm thấy tài xế.");
+
+// TripCommandService — same error, different wording
+throw AppException.general(HttpStatus.NOT_FOUND, "Tài xế không tồn tại.");
+```
+
+✅ **Good — one module-owned factory method defines the status and localized message:**
+```java
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public final class DriverExceptions {
+
+    public static AppException driverNotFound() {
+        return AppException.general(
+                HttpStatus.NOT_FOUND,
+                "Không tìm thấy tài xế."
+        );
+    }
+}
+```
+
+Every caller reuses it:
+```java
+return driverRepository.findByAccountIdAndCompanyId(accountId, companyId)
+        .orElseThrow(DriverExceptions::driverNotFound);
+```
+
+The factory owns exception construction only. `GlobalExceptionHandler` still converts the exception into the application's standard HTTP response, while Rule 13 governs the user-facing message language.
 
 ---
 

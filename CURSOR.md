@@ -60,6 +60,12 @@ Never `JOIN FETCH` (or entity-loading `JOIN`) a collection (`@OneToMany` / `@Man
 ## Rule 17 — `Set<>` for Entity Collections
 Entity association fields (`@OneToMany` / `@ManyToMany`) are `Set<>`, never `List<>` — avoids duplicates, models many-to-many correctly, and sidesteps `MultipleBagFetchException`. Initialize to `new HashSet<>()`. Base equality on the UUID v7 id / a business key, **not** Lombok `@EqualsAndHashCode`/`@Data`. `List<>` is still fine for DTOs and return types.
 
+## Rule 18 — Executors by Workload Type
+I/O-bound work (S3, HTTP, database calls) uses virtual threads; CPU-bound work (BCrypt, PDF rendering, image compression) uses a fixed pool sized to the configured background CPU budget — currently `2`, not `availableProcessors()`. Protect executors without a built-in limit with a shared `Semaphore`; do not add one around an already bounded fixed pool. Never submit child work to the same bounded executor while parent tasks occupy it and wait. Application-wide executors and limiters must be shared beans and shut down with their owner.
+
+## Rule 19 — Module-Specific Exception Factories
+Each module owns one exception factory (for example, `DriverExceptions`) in its `exception` package. Services, validators, and controllers call clearly named factory methods instead of constructing `AppException` with duplicated statuses or messages. Reuse one method per business error, pass only required context, keep HTTP response conversion in `GlobalExceptionHandler`, and keep user-facing messages compliant with Rule 13.
+
 ---
 
 **Tip:** This file pairs with `.cursor/rules/spring-boot.mdc` which Cursor auto-attaches when editing `*.java`, `pom.xml`, or `build.gradle` files.

@@ -36,6 +36,8 @@ Original additions in this repository (not present in upstream):
   15. Two-Tier Validation (Declarative + Business Strategy)
   16. High-Performance Data Fetching (Split Queries over JOIN FETCH)
   17. Set<> (not List<>) for Entity Collections
+  18. Choose Executors Based on Workload Type
+  19. Centralize Module-Specific Exceptions
 
 These additions, the EXAMPLES.md content, and the README files are original
 contributions by Tobi2904, released under the MIT License (see LICENSE).

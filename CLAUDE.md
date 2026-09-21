@@ -3,7 +3,7 @@
 Behavioral guidelines to reduce common LLM coding mistakes for Spring Boot / Java backend projects. Merge with project-specific instructions as needed.
 
 > **Attribution:** Rules #1–#4 are derived from [`forrestchang/andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) (MIT License, © Forrest Chang), based on Andrej Karpathy's observations on LLM coding pitfalls.
-> Rules #5–#17 are original additions by [@Tobi2904](https://github.com/Tobi2904), focused on Spring Boot / Java backend conventions. Rule #13 (Localized Error Messages) defaults to a Vietnamese example and is intended to be customized or removed for other audiences.
+> Rules #5–#19 are original additions by [@Tobi2904](https://github.com/Tobi2904), focused on Spring Boot / Java backend conventions. Rule #13 (Localized Error Messages) defaults to a Vietnamese example and is intended to be customized or removed for other audiences.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
@@ -63,7 +63,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ---
 
-> **The rules below (#5–#17) are original Spring Boot / Java backend additions, not part of the upstream Karpathy guidelines.**
+> **The rules below (#5–#19) are original Spring Boot / Java backend additions, not part of the upstream Karpathy guidelines.**
 
 ## 5. No Hardcoding (Use Constants & Enums)
 
@@ -201,3 +201,81 @@ The test: If generated JPQL contains a `JOIN FETCH` for a collection, or the dat
 - `List<>` stays perfectly fine for DTOs, projections, and method return types — this rule is about **entity association fields** only.
 
 The test: Does an `@Entity` declare a `List<>` association field? Change it to `Set<>` (and confirm equality is id/business-key based, not Lombok-generated).
+
+## 18. Choose Executors Based on Workload Type
+
+**I/O-bound work → virtual threads. CPU-bound work → fixed thread pool sized to the background CPU budget.**
+
+- **I/O-bound tasks** such as S3 operations, HTTP requests, and database calls must use `newVirtualThreadPerTaskExecutor()`. Virtual threads release their carrier threads while waiting, allowing thousands of waiting tasks to remain inexpensive. Measured example: 50 image-download operations took approximately 105 ms with virtual threads, compared with 1,407 ms using a fixed pool of four threads.
+- **CPU-bound tasks** such as BCrypt hashing, PDF rendering, and image compression must use a fixed thread pool. Its size must equal the configured **background CPU budget, currently `2`**.
+- The production server is an Ampere A1 instance with **4 OCPUs and 22 GiB RAM** (measured in August 2026). Neoverse N1 has no SMT, so four OCPUs represent four physical cores. Only two cores are intentionally allocated to background processing, leaving the other two available for the API, PostgreSQL, and Redis running on the same server.
+- The value `2` represents the **background CPU budget**, not the server's total number of cores. Do not automatically set the pool size to `Runtime.getRuntime().availableProcessors()` or increase it to `4`. Adding workers beyond the allocated budget does not make CPU-bound work faster; it starves normal API requests of CPU resources.
+- Use the existing constants instead of hardcoding worker counts. See `ImportConstants#HASH_WORKERS` and `BatchExportConstants#RENDER_WORKERS`.
+- An executor without a built-in concurrency limit must be protected by a `Semaphore`.
+- A fixed thread pool already has a concurrency limit through its pool size. Do not add a redundant `Semaphore` around it.
+- The concurrency limit for I/O-bound work must not be calculated from the number of CPU cores. Virtual threads waiting for I/O consume very little CPU. The actual limits are usually the Hikari connection pool and the latency or capacity of the downstream service. Increase I/O concurrency only after measurement. See `StorageCleanupConstants#CLEANUP_WORKERS`.
+- Never submit child tasks back to the same bounded executor that is currently running and waiting inside the parent tasks. The parent tasks can occupy every worker while waiting for child tasks that cannot start, causing thread-pool starvation and a hard deadlock that may require restarting the service.
+- Any concurrency limit that applies to the **entire application**, rather than to a single request, must be stored in a singleton bean or configured as a shared executor bean in `AsyncConfig`. Never create a new global limiter or executor for each request.
+- Executors and semaphores must be closed or shut down correctly when their owning bean is destroyed.
+
+The test: Is the task primarily waiting or computing? Waiting → virtual threads. Computing → a fixed pool sized to the configured CPU budget. Does the executor already enforce a concurrency limit? If not → add a shared `Semaphore`.
+
+## 19. Centralize Module-Specific Exceptions
+
+**Each module must define one dedicated exception factory containing its user-facing error messages. Never duplicate exception construction across services.**
+
+- Create a module-specific exception factory such as `DriverExceptions`, `VehicleExceptions`, or `BookingExceptions`.
+- Keep the factory in the corresponding module's `exception` package.
+- Each error case must be exposed through a clearly named factory method such as `driverNotFound()`, `vehicleNotFound()`, or `bookingAlreadyExists()`.
+- Services, validators, and controllers must call these factory methods instead of constructing `AppException` instances with hardcoded messages.
+- Reuse the same factory method wherever the same business error can occur.
+- If an error requires contextual information, accept only the required values as method parameters and construct the final message inside the exception factory.
+- Do not create duplicate exception methods with different wording for the same business error.
+- The module-specific exception factory is responsible for constructing exceptions only. The application-level `GlobalExceptionHandler` remains responsible for converting exceptions into standardized HTTP responses.
+- Use static imports when they improve readability and do not create naming ambiguity.
+- User-facing messages must continue to follow Rule #13.
+
+Bad — the status and message are duplicated inside business logic:
+
+```java
+return driverRepository.findByAccountIdAndCompanyId(accountId, companyId)
+        .orElseThrow(() -> AppException.general(
+                HttpStatus.NOT_FOUND,
+                "Không tìm thấy tài xế."
+        ));
+```
+
+If multiple services repeat this code, changing the message or HTTP status later requires finding and updating every occurrence.
+
+Good — business logic refers to a centralized exception factory method:
+
+```java
+return driverRepository.findByAccountIdAndCompanyId(accountId, companyId)
+        .orElseThrow(DriverExceptions::driverNotFound);
+```
+
+Example module-specific exception factory:
+
+```java
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public final class DriverExceptions {
+
+    public static AppException driverNotFound() {
+        return AppException.general(
+                HttpStatus.NOT_FOUND,
+                "Không tìm thấy tài xế."
+        );
+    }
+}
+```
+
+With a static import, the service may use:
+
+```java
+import static com.example.driver.exception.DriverExceptions.driverNotFound;
+
+return driverRepository.findByAccountIdAndCompanyId(accountId, companyId)
+        .orElseThrow(() -> driverNotFound());
+```
+
+The test: Search service, validator, and controller classes for direct calls to `AppException.general(...)` or duplicated user-facing messages. If the error belongs to a specific module, replace it with a method from that module's exception factory.
